@@ -215,6 +215,7 @@
 
     // ── Dados do Lead (capturados no submit do formulário) ──
     var leadNome = '';
+    var leadTelefone = '';
     var leadContato = '';  // WhatsApp
     var leadEmail = '';
 
@@ -715,16 +716,7 @@
       chassisBody.allowSleep = false; // FIX: impede que o motor Cannon desligue o corpo → carro não para sozinho
       world.addBody(chassisBody);
 
-      // ── Módulo: Haptic Feedback + Screen Shake na colisão ──
-      chassisBody.addEventListener('collide', function (e) {
-        // Velocidade relativa da colisão — magnitude do impulso recebido
-        var impact = e.contact.getImpactVelocityAlongNormal();
-        var mag = Math.abs(impact);
-        if (mag > 2) {           // impacto leve (cone)
-          shakeIntensity = Math.min(0.15 + mag * 0.04, 0.8);
-          if (navigator.vibrate) navigator.vibrate(mag > 6 ? 80 : 40);
-        }
-      });
+
 
       // RaycastVehicle
       vehicle = new CANNON.RaycastVehicle({
@@ -781,42 +773,56 @@
 
       var ORXW = 22, ORZW = 72, IRXW = 9, IRZW = 59; // raios: outer/inner
 
-      // ── 1) 4 Paredes retas (lado direito e esquerdo, inner e outer) ──
-      // Cada reta cobre o Z da elipse de -rz a +rz (comprimento = 2*rz)
-      [
-        // [cx, cz, halfLenZ, halfThick, rotY]  — rotY=0 = caixa alinhada com Z
-        [ORXW, 0, ORZW, 0.5, 0],  // outer direita
-        [-ORXW, 0, ORZW, 0.5, 0],  // outer esquerda
-        [IRXW, 0, IRZW, 0.5, 0],  // inner direita
-        [-IRXW, 0, IRZW, 0.5, 0],  // inner esquerda
-      ].forEach(function (w) {
-        var wb = new CANNON.Body({ mass: 0, material: wallMat });
-        wb.addShape(new CANNON.Box(new CANNON.Vec3(w[3], 1.2, w[2])));
-        wb.position.set(w[0], 1.0, w[1]);
-        world.addBody(wb);
-      });
+
 
       // ── 2) Curvas semicirculares: north cap (z>0) e south cap (z<0) ──
       var capSegs = 32;  // segmentos por semicírculo (alta resolução)
       [
-        { rx: ORXW, rz: ORZW, side: 1 },  // outer, north
-        { rx: ORXW, rz: ORZW, side: -1 },  // outer, south
-        { rx: IRXW, rz: IRZW, side: 1 },  // inner, north
-        { rx: IRXW, rz: IRZW, side: -1 },  // inner, south
+        { rx: ORXW, rz: ORZW, side: 1, isOuter: true },   // outer, north
+        { rx: ORXW, rz: ORZW, side: -1, isOuter: true },  // outer, south
+        { rx: IRXW, rz: IRZW, side: 1, isOuter: false },   // inner, north
+        { rx: IRXW, rz: IRZW, side: -1, isOuter: false },  // inner, south
       ].forEach(function (cap) {
-        // Semicírculo: a de 0 a π (north) ou π a 2π (south)
+        // Para a curva norte (z>0), Z vai de rz até 0, mas logicamente o centro do arco é no limite da reta
+        // As retas cobrem Z de -ORZW até +ORZW. Portanto, a curva "começa" em Z = ORZW ou -ORZW
+
+        // Na elipse real desenhada pelo track, o centro do 'north cap' não é 0,0. 
+        // As retas têm comprimento 2*rz ? Não, as retas não são caixas e a pista foi gerada
+        // usando Math.cos(a) * rx, Math.sin(a) * rz (Elipse Perfeita ao redor de 0,0!)
+
         var aStart = cap.side > 0 ? 0 : Math.PI;
         var aEnd = cap.side > 0 ? Math.PI : Math.PI * 2;
+
         for (var i = 0; i < capSegs; i++) {
           var a1 = aStart + (i / capSegs) * (aEnd - aStart);
           var a2 = aStart + ((i + 1) / capSegs) * (aEnd - aStart);
+
           var x1 = Math.cos(a1) * cap.rx, z1 = Math.sin(a1) * cap.rz;
           var x2 = Math.cos(a2) * cap.rx, z2 = Math.sin(a2) * cap.rz;
+
           var len = Math.sqrt((x2 - x1) * (x2 - x1) + (z2 - z1) * (z2 - z1));
           var ang = Math.atan2(z2 - z1, x2 - x1);
+
           var wb = new CANNON.Body({ mass: 0, material: wallMat });
-          wb.addShape(new CANNON.Box(new CANNON.Vec3(len / 2 + 0.05, 1.2, 0.45)));
-          wb.position.set((x1 + x2) / 2, 1.0, (z1 + z2) / 2);
+          // A caixa tem comprimento `len` e profundidade 0.45.
+          // IsOuter controla se joga a parede um pouquinho pra fora ou pra dentro do limiar perfeito
+          var thickness = 0.5;
+          wb.addShape(new CANNON.Box(new CANNON.Vec3(len / 2, 1.2, thickness / 2)));
+
+          // Centro do segmento
+          var cx = (x1 + x2) / 2;
+          var cz = (z1 + z2) / 2;
+
+          // Deslocar a caixa (sua largura em Z na perspectiva local) para trás ou para frente baseado no centro
+          // Empurrar a barreira thickness/2 para for fora da pista (afastar do centro 0,0)
+          // Normal do segmento apontando para fora da elipse:
+          var nx = cx; var nz = cz;
+          var nLen = Math.sqrt(nx * nx + nz * nz);
+          nx /= nLen; nz /= nLen;
+
+          var pushDist = (cap.isOuter ? thickness / 2 : -thickness / 2);
+
+          wb.position.set(cx + nx * pushDist, 1.0, cz + nz * pushDist);
           var wq = new CANNON.Quaternion();
           wq.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), ang);
           wb.quaternion.copy(wq);
@@ -1003,41 +1009,25 @@
     function applyControls() {
       if (!vehicle || !chassisBody) return;
 
-      // Wake up any sleeping body whenever there is an active command
       if (currentEngineForce !== 0 || currentSteering !== 0 || currentBraking !== 0) {
         chassisBody.wakeUp();
       }
 
-      // Keyboard path: if controls flags are active, they override the globals
       if (controls.gas) currentEngineForce = MAX_ENGINE_FORCE;
       if (controls.brake) {
         var spd = chassisBody.velocity.length();
         currentEngineForce = spd < 0.5 ? -MAX_ENGINE_FORCE * 0.55 : 0;
         currentBraking = spd < 0.5 ? 0 : BRAKE_FORCE;
       }
-      if (!controls.gas && !controls.brake) {
-        // Only zero these out if the joystick isn't also controlling them
-        if (currentEngineForce > 0 && !controls.gas) currentEngineForce = 0;
-        currentBraking = 0;
-      }
       if (controls.left) currentSteering = MAX_STEER;
       if (controls.right) currentSteering = -MAX_STEER;
-      if (!controls.left && !controls.right && currentSteering !== 0) {
-        // smooth return to center for keyboard
-        currentSteering += (0 - currentSteering) * 0.18;
-        if (Math.abs(currentSteering) < 0.001) currentSteering = 0;
-      }
 
-      // Apply to Cannon each frame (the key fix — not inside event handlers)
       vehicle.applyEngineForce(currentEngineForce, 2);
       vehicle.applyEngineForce(currentEngineForce, 3);
       vehicle.setSteeringValue(currentSteering, 0);
       vehicle.setSteeringValue(currentSteering, 1);
       vehicle.setBrake(currentBraking, 0); vehicle.setBrake(currentBraking, 1);
       vehicle.setBrake(currentBraking, 2); vehicle.setBrake(currentBraking, 3);
-
-      if (currentEngineForce !== 0)
-        console.log('[Física] F:', currentEngineForce.toFixed(0), '| vel:', chassisBody.velocity.length().toFixed(2));
     }
 
     function syncCarToPhysics() {
@@ -1221,7 +1211,7 @@
         }
 
         // Chegada só vale depois do checkpoint (impede falso disparo no reset)
-        if (_passouCheckpoint && Math.abs(_lapAngle) >= Math.PI * 2) {
+        if (_passouCheckpoint && Math.abs(_lapAngle) >= Math.PI * 1.90) {
           showFinishModal();
         }
       }
@@ -1405,20 +1395,23 @@
 
       // ── Enviar dados para Google Sheets (no-cors) ──
       var webhookUrl = 'https://script.google.com/macros/s/AKfycbxbCiAmGG9m90OZWW4nda3arVYqoOa_ari-3YTIf97oMupUmYw-ZmJbceAVSVnpgaFC/exec';
+      const payload = {
+        nome: leadNome || "",
+        email: leadEmail || "",
+        telefone: leadTelefone || leadContato || "",
+        tempo: tempoGasto,
+        data: new Date().toISOString()
+      };
+
       fetch(webhookUrl, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nome: leadNome,
-          telefone: leadContato,
-          email: leadEmail,
-          tempo: tempoGasto,
-          data: new Date().toISOString()
-        })
+        body: JSON.stringify(payload)
       })
         .then(function () { console.log('✅ Lead e Tempo enviados silenciosamente para a planilha!'); })
         .catch(function (err) { console.error('❌ Erro ao enviar dados:', err); });
+
 
       // ── Haptic de vitória + Screen Shake celebratório ──
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
@@ -1560,6 +1553,7 @@
         leadNome = (document.getElementById('field-name') || {}).value || '';
         leadEmail = (document.getElementById('field-email') || {}).value || '';
         leadContato = (document.getElementById('field-whatsapp') || {}).value || '';
+        leadTelefone = leadContato;
         var btn = document.getElementById('btn-submit');
         btn.classList.add('loading'); btn.disabled = true;
         setTimeout(function () { revealScene(gate, card, overlay); }, 420);
