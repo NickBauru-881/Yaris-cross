@@ -1,0 +1,987 @@
+/* ═══════════════════════════════════════════
+   TOYOTA YARIS CROSS – Style v3.0 – Etapa 2
+   Track + Car + Controls UI
+═══════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  --red: #eb0a1e;
+  --red-dark: #c8001a;
+  --glass: rgba(8, 8, 14, 0.75);
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --input-focus: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-focus: rgba(235, 10, 30, 0.65);
+  --text: #f0f0f0;
+  --muted: rgba(255, 255, 255, 0.48);
+  --label: rgba(255, 255, 255, 0.68);
+  --blur: 26px;
+  --r-card: 20px;
+  --r-input: 12px;
+  --r-btn: 14px;
+  --touch: 52px;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #050508;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  /* blocks pull-to-refresh + double-tap-zoom on iOS */
+  -webkit-touch-callout: none;
+}
+
+/* ─── Canvas ─── */
+#canvas-container {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  touch-action: none;
+}
+
+#canvas-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ─── Text Sequence ─── */
+#text-sequence {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  pointer-events: none;
+}
+
+.seq-text {
+  position: absolute;
+  width: 100%;
+  max-width: 560px;
+  padding: 0 32px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seq-eyebrow {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 18px;
+  display: block;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.98), 0 0 40px rgba(0, 0, 0, 0.9);
+}
+
+.seq-headline {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(28px, 8vw, 46px);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.98), 0 2px 8px rgba(0, 0, 0, 0.95), 0 0 60px rgba(0, 0, 0, 0.8);
+}
+
+.seq-headline em {
+  font-style: normal;
+  color: var(--red);
+}
+
+.seq-sub {
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.98), 0 0 40px rgba(0, 0, 0, 0.9);
+}
+
+#seq-progress {
+  position: fixed;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 21;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+}
+
+.seq-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.4s;
+}
+
+.seq-dot.active {
+  background: var(--red);
+  box-shadow: 0 0 8px rgba(235, 10, 30, 0.6);
+}
+
+/* ─── Gatekeeper ─── */
+#gatekeeper {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 4, 8, 0.55);
+  -webkit-backdrop-filter: blur(var(--blur));
+  backdrop-filter: blur(var(--blur));
+  opacity: 0;
+  pointer-events: none;
+}
+
+#gatekeeper.active {
+  pointer-events: auto;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 36px 28px 32px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.form-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--red), var(--red-dark), transparent);
+}
+
+.form-card::after {
+  content: '';
+  position: absolute;
+  top: -80px;
+  left: -80px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 10, 30, 0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.brand-badge svg {
+  width: 34px;
+  height: auto;
+}
+
+.brand-logo {
+  display: block;
+  max-height: 48px;
+  width: auto;
+  object-fit: contain;
+}
+
+.badge-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(20px, 5.5vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.card-title span {
+  color: var(--red);
+}
+
+.card-subtitle {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.55;
+}
+
+.card-subtitle strong {
+  color: var(--red);
+}
+
+.surprise-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(235, 10, 30, 0.12);
+  border: 1px solid rgba(235, 10, 30, 0.25);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.divider-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--red);
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  margin-bottom: 20px;
+}
+
+.field-wrapper {
+  position: relative;
+}
+
+.field-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  display: block;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 44px 0 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.field-input::placeholder {
+  color: var(--muted);
+  font-weight: 300;
+}
+
+.field-input:focus {
+  background: var(--input-focus);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(235, 10, 30, 0.12);
+}
+
+.input-icon {
+  position: absolute;
+  right: 14px;
+  bottom: 18px;
+  color: var(--muted);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+#btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--touch);
+  padding: 0 24px;
+  background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+  border: none;
+  border-radius: var(--r-btn);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 24px rgba(235, 10, 30, 0.40);
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+
+#btn-submit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#btn-submit:active {
+  transform: scale(0.973);
+  box-shadow: 0 2px 12px rgba(235, 10, 30, 0.25);
+}
+
+#btn-submit:hover::before {
+  opacity: 1;
+}
+
+.btn-spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#btn-submit.loading .btn-text,
+#btn-submit.loading .btn-icon {
+  display: none;
+}
+
+#btn-submit.loading .btn-spinner {
+  display: block;
+}
+
+.privacy-note {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.corner-accent {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  opacity: 0.13;
+}
+
+.corner-accent svg {
+  width: 38px;
+  height: 38px;
+}
+
+/* ─── Scene Overlay ─── */
+#scene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.scene-label {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.scene-label p {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.30);
+}
+
+/* ══════════════════════════════════════════
+   RACING HUD
+══════════════════════════════════════════ */
+#racing-hud {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 56px;
+  background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-panel {
+  text-align: center;
+  min-width: 64px;
+}
+
+.hud-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.hud-value {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+#hud-speed {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.hud-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.1em;
+}
+
+.hud-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hud-gear-val {
+  color: var(--red);
+}
+
+/* ══════════════════════════════════════════
+   VIRTUAL JOYSTICK
+══════════════════════════════════════════ */
+#controls-ui {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 28px max(36px, env(safe-area-inset-bottom));
+  pointer-events: none;
+  opacity: 0;
+}
+
+#steering-zone {
+  display: none;
+}
+
+#pedals-zone {
+  display: none;
+}
+
+/* ── Joystick Base ── */
+#joystick-base {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  order: 3;
+  /* joystick vai para o lado DIREITO */
+}
+
+#joystick-base::before,
+#joystick-base::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 255, 255, 0.10);
+  border-radius: 1px;
+}
+
+#joystick-base::before {
+  width: 1px;
+  height: 70%;
+}
+
+#joystick-base::after {
+  width: 70%;
+  height: 1px;
+}
+
+/* ── Knob ── */
+#joystick-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%, rgba(255, 255, 255, 0.40), rgba(235, 10, 30, 0.60) 70%);
+  border: 2px solid rgba(255, 255, 255, 0.40);
+  box-shadow: 0 3px 16px rgba(235, 10, 30, 0.40), 0 1px 6px rgba(0, 0, 0, 0.6) inset;
+  position: relative;
+  z-index: 2;
+  will-change: transform;
+  transition: transform 0.14s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.1s;
+  touch-action: none;
+  pointer-events: none;
+}
+
+#joystick-base.joy-active #joystick-knob {
+  box-shadow: 0 4px 28px rgba(235, 10, 30, 0.70), 0 0 0 4px rgba(235, 10, 30, 0.22);
+  transition: box-shadow 0.1s;
+  /* instant position, smooth glow */
+}
+
+/* ── Hint Labels ── */
+#joy-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  padding-bottom: 12px;
+  pointer-events: none;
+}
+
+#joy-hint span {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.ctrl-btn {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  background: rgba(15, 15, 25, 0.65);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  /* critical: no browser interference */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.06s, transform 0.06s, border-color 0.06s, box-shadow 0.06s;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+  font-size: 0;
+  position: relative;
+}
+
+.ctrl-btn svg {
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* Immediate visual press feedback — felt before JS fires */
+.ctrl-btn:active,
+.ctrl-btn.pressed {
+  transform: scale(0.90);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.ctrl-btn.steer-btn {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.ctrl-btn.steer-btn:active,
+.ctrl-btn.steer-btn.pressed {
+  background: rgba(255, 255, 255, 0.20);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12), 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.pedal-gas {
+  width: 120px;
+  height: 120px;
+  background: rgba(30, 180, 80, 0.20);
+  border-color: rgba(30, 220, 80, 0.45);
+}
+
+.pedal-gas:active,
+.pedal-gas.pressed {
+  background: rgba(30, 220, 80, 0.50);
+  border-color: rgba(30, 240, 80, 0.90);
+  box-shadow: 0 0 0 6px rgba(30, 220, 80, 0.20), 0 4px 24px rgba(0, 0, 0, 0.4);
+  transform: scale(0.93);
+}
+
+.pedal-brake {
+  background: rgba(235, 10, 30, 0.16);
+  border-color: rgba(235, 10, 30, 0.40);
+}
+
+.pedal-brake:active,
+.pedal-brake.pressed {
+  background: rgba(235, 10, 30, 0.42);
+  border-color: rgba(235, 10, 30, 0.80);
+  box-shadow: 0 0 0 3px rgba(235, 10, 30, 0.16), 0 4px 20px rgba(0, 0, 0, 0.4);
+  transform: scale(0.90);
+}
+
+/* Start/Finish line labels in 3D */
+#flag-hint {
+  position: fixed;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 360px) {
+  .form-card {
+    padding: 26px 18px 22px;
+  }
+
+  .ctrl-btn {
+    width: 62px;
+    height: 62px;
+  }
+}
+
+@media (max-height: 680px) {
+  .form-card {
+    padding: 22px 22px 20px;
+  }
+
+  .field-group {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .card-header {
+    margin-bottom: 16px;
+  }
+}
+
+/* ══════════════════════════════════════════
+   FINISH MODAL (Gran Finale)
+══════════════════════════════════════════ */
+#finish-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 4, 10, 0.72);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#finish-modal.active {
+  pointer-events: auto;
+}
+
+.finish-card {
+  width: 100%;
+  max-width: 390px;
+  background: rgba(8, 8, 16, 0.90);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 24px;
+  padding: 44px 32px 40px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+.finish-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #eb0a1e, #ffcc00, #eb0a1e, transparent);
+}
+
+.finish-card::after {
+  content: '';
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(235, 10, 30, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.finish-trophy {
+  font-size: 64px;
+  line-height: 1;
+  margin-bottom: 20px;
+  display: block;
+  filter: drop-shadow(0 0 20px rgba(255, 200, 0, 0.5));
+}
+
+.finish-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(28px, 7vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 16px;
+}
+
+.finish-title em {
+  font-style: normal;
+  color: #eb0a1e;
+}
+
+.finish-divider {
+  width: 48px;
+  height: 3px;
+  background: linear-gradient(90deg, #eb0a1e, #ffcc00);
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+
+.finish-message {
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.80);
+  line-height: 1.65;
+  margin-bottom: 28px;
+}
+
+.finish-message strong {
+  color: #ffcc00;
+  font-weight: 700;
+}
+
+.finish-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(235, 10, 30, 0.15);
+  border: 1px solid rgba(235, 10, 30, 0.35);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #eb0a1e;
+}
+
+.finish-speed {
+  margin-top: 20px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.30);
+}
+
+/* ── Rescue / Reset button ── */
+#btn-rescue {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(12, 12, 22, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 3px 18px rgba(0, 0, 0, 0.55);
+  transition: transform 0.12s, background 0.12s;
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: max(36px, env(safe-area-inset-bottom));
+  order: 1;
+  /* botão de resgate vai para o lado ESQUERDO */
+}
+
+#btn-rescue:active {
+  transform: scale(0.88);
+  background: rgba(235, 10, 30, 0.38);
+}
+
+/* ── Timer Time Attack ── */
+#timer-display {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+  transition: color 0.3s;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.04em;
+}
+
+@keyframes timerPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* JS adds class 'urgente' when tempo <= 5 */
+#timer-display.urgente {
+  animation: timerPulse 0.6s ease-in-out infinite;
+}
+
+/* ── Botão Compartilhar (Tela de Vitória) ── */
+#btn-share {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 20px;
+  min-height: 52px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, #25d366 0%, #128c56 100%);
+  border: none;
+  border-radius: 14px;
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(37, 211, 102, 0.40);
+  transition: transform 0.14s, box-shadow 0.14s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#btn-share:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 10px rgba(37, 211, 102, 0.25);
+}
