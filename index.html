@@ -1242,15 +1242,18 @@
 
     function updateHUD() {
       if (!chassisBody) return;
-      var spd = Math.round(chassisBody.velocity.length() * 3.6);
-      var speedEl = document.getElementById('hud-speed');
-      var gearEl = document.getElementById('hud-gear');
-      if (speedEl) speedEl.textContent = spd;
-      if (gearEl) {
-        if (!controls.gas && !controls.brake) gearEl.textContent = 'N';
-        else if (controls.brake && chassisBody.velocity.length() < 0.5) gearEl.textContent = 'R';
-        else gearEl.textContent = 'D';
-      }
+      var spd = chassisBody.velocity.length();
+      var kmh = Math.floor(spd * 3.6);
+      var spdEl = document.getElementById('hud-speed');
+      if (spdEl) spdEl.textContent = kmh;
+
+      // var gearEl = document.getElementById('hud-gear');
+      // if (gearEl) {
+      //   if (currentEngineForce > 100) gearEl.textContent = 'D';
+      //   else if (currentEngineForce < -100) gearEl.textContent = 'R';
+      //   else if (currentBraking > 10) gearEl.textContent = 'P';
+      //   else gearEl.textContent = 'N';
+      // }
     }
 
     /* ─── Controls: touch / keyboard → globals only, physics applied in rAF ─── */
@@ -1327,7 +1330,7 @@
         function joyMove(e) {
           if (!joyActive) return;
           if (e.cancelable) e.preventDefault();
-          // Find the right touch
+
           var t = null;
           if (e.changedTouches) {
             for (var i = 0; i < e.changedTouches.length; i++) {
@@ -1340,21 +1343,39 @@
           var dy = t.clientY - joyOriginY;
           var dist = Math.sqrt(dx * dx + dy * dy);
           var clampedX = dx, clampedY = dy;
-          if (dist > JOY_RADIUS) { clampedX = (dx / dist) * JOY_RADIUS; clampedY = (dy / dist) * JOY_RADIUS; }
 
-          // Move knob visually
+          if (dist > JOY_RADIUS) {
+            clampedX = (dx / dist) * JOY_RADIUS;
+            clampedY = (dy / dist) * JOY_RADIUS;
+          }
+
           joyKnob.style.transform = 'translate(' + clampedX + 'px, ' + clampedY + 'px)';
 
-          // Normalise -1..1
-          var normX = clampedX / JOY_RADIUS;  // left/right
-          var normY = clampedY / JOY_RADIUS;
+          var normX = clampedX / JOY_RADIUS;
+          var normY = clampedY / JOY_RADIUS; // Negativo quando para cima
 
-          // Write globals — these are read each frame by applyControls()
-          currentEngineForce = -normY * MAX_ENGINE_FORCE;
-          currentSteering = -normX * MAX_STEER;  // negative = right
+          // --- AJUSTE DE POLARIDADE (FRENTE E RÉ) ---
+          // O valor de normY é negativo para cima. 
+          // Mudamos para positivo direto para testar a direção correta.
+          currentEngineForce = normY * MAX_ENGINE_FORCE;
+          currentSteering = -normX * MAX_STEER;
           currentBraking = 0;
 
-          // Clear keyboard flags so joystick has full authority
+          // Atualização do HUD baseada na direção do dedo
+          var gearEl = document.getElementById('hud-gear');
+          if (gearEl) {
+            if (normY < -0.1) { // Dedo empurrando para CIMA
+              gearEl.textContent = 'D';
+              gearEl.style.color = '#ffffff';
+            } else if (normY > 0.1) { // Dedo puxando para BAIXO
+              gearEl.textContent = 'R';
+              gearEl.style.color = '#eb0a1e';
+            } else {
+              gearEl.textContent = 'N';
+              gearEl.style.color = '#ffffff';
+            }
+          }
+
           controls.gas = false; controls.brake = false;
           controls.left = false; controls.right = false;
         }
@@ -1644,4 +1665,4 @@
   </script>
 </body>
 
-</html> 
+</html>
