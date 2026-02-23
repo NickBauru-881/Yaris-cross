@@ -128,10 +128,9 @@
       <div class="hud-label">Marcha</div>
       <div class="hud-value hud-gear-val" id="hud-gear">N</div>
     </div>
-    <!-- Timer Time Attack -->
     <div class="hud-panel" id="timer-panel">
       <div class="hud-label">⏱ Tempo</div>
-      <div id="timer-display" class="hud-value">0:40</div>
+      <div id="timer-display" class="hud-value">0:00</div>
     </div>
   </div>
 
@@ -210,7 +209,7 @@
     var _passouCheckpoint = false; // true once car passes the half-oval mark
 
     // Timer Time Attack
-    var tempoRestante = 40;
+    var tempoDecorrido = 0;
     var timerInterval = null;
 
     // ── Dados do Lead (capturados no submit do formulário) ──
@@ -226,6 +225,19 @@
     // Áudio removido — arquivos .mp3 não existem no diretório
     // var motorSom, pneuSom — desativado para evitar erros 404 e crash no loop
     var _audioIniciado = false;
+    var motorSom = new Audio('./motor.mp3');
+    var motorAndando = new Audio('andando.mp3'); // Arquivo do som contínuo
+    motorAndando.loop = true;
+    motorAndando.volume = 0.5; // Mais baixo para não incomodar
+
+    // Módulo 1: Variáveis de Controle de Som
+    var _targetVol = 0;
+    var _currentVol = 0;
+
+    // Assim que a ignição termina, começa o loop do motor
+    motorSom.addEventListener('ended', function () {
+      motorAndando.play().catch(function (err) { console.warn("Erro no loop:", err); });
+    });
 
     // ── Módulo: Screen Shake ──
     var shakeIntensity = 0;   // intensidade atual do tremor (reduzida a cada frame)
@@ -987,6 +999,18 @@
         if (_driftActive && chassisBody) { spawnTireSmoke(); }
         updateTireSmokeParticles(dt);
 
+        // Módulo 2: Lógica de Volume no Loop de Animação
+        if (typeof motorAndando !== 'undefined' && motorAndando) {
+          // Se o jogador estiver segurando 'W' ou a seta pra cima (controls.gas), sobe o volume; senão, cai a zero.
+          _targetVol = controls.gas ? 0.8 : 0.05;
+
+          // Faz um fade (lerp) suave entre o volume atual e o desejado
+          _currentVol += (_targetVol - _currentVol) * 0.05;
+
+          // Limita para evitar erros no HTML5 Audio e aplica no som contínuo
+          motorAndando.volume = Math.max(0, Math.min(1, _currentVol));
+        }
+
         // ── Sincronizar corpos dos cones com seus meshes ──
         slalomBodies.forEach(function (pair) {
           pair.mesh.position.set(
@@ -1155,6 +1179,15 @@
         vehicle.setBrake(0, 2); vehicle.setBrake(0, 3);
       }
       chassisBody.wakeUp();
+
+      // Para o motor contínuo e toca a ignição do zero
+      if (typeof motorAndando !== 'undefined' && motorAndando) {
+        motorAndando.pause();
+      }
+      if (typeof motorSom !== 'undefined' && motorSom) {
+        motorSom.currentTime = 0;
+        motorSom.play().catch(function (err) { console.warn("Áudio bloqueado no restart", err); });
+      }
     }
 
     /* ─── Web Share API ─── */
@@ -1169,28 +1202,17 @@
     /* ─── Timer Time Attack ─── */
     function iniciarTimer() {
       clearInterval(timerInterval);
-      tempoRestante = 40;
+      tempoDecorrido = 0;
       var el = document.getElementById('timer-display');
-      if (el) { el.textContent = '0:40'; el.style.color = '#ffffff'; }
+      if (el) { el.textContent = '0:00'; el.style.color = '#ffffff'; }
 
       timerInterval = setInterval(function () {
-        tempoRestante--;
+        tempoDecorrido++;
         var el2 = document.getElementById('timer-display');
         if (el2) {
-          var mm = Math.floor(tempoRestante / 60);
-          var ss = tempoRestante % 60;
+          var mm = Math.floor(tempoDecorrido / 60);
+          var ss = tempoDecorrido % 60;
           el2.textContent = mm + ':' + (ss < 10 ? '0' : '') + ss;
-          // Urgência nos últimos 5 segundos
-          var urgente = tempoRestante <= 5;
-          el2.style.color = urgente ? '#eb0a1e' : '#ffffff';
-          el2.classList.toggle('urgente', urgente);
-        }
-        if (tempoRestante <= 0) {
-          clearInterval(timerInterval);
-          if (el2) el2.textContent = 'Tempo!';
-          // Derrota: resetar o carro (sem chamar iniciarTimer de novo aqui,
-          // o próprio resetCar vai chama-lo)
-          resetCar();
         }
       }, 1000);
     }
@@ -1325,10 +1347,10 @@
 
           // Normalise -1..1
           var normX = clampedX / JOY_RADIUS;  // left/right
-          var normY = -clampedY / JOY_RADIUS;  // up = forward (+), down = backward (-)
+          var normY = clampedY / JOY_RADIUS;
 
           // Write globals — these are read each frame by applyControls()
-          currentEngineForce = normY * MAX_ENGINE_FORCE;
+          currentEngineForce = -normY * MAX_ENGINE_FORCE;
           currentSteering = -normX * MAX_STEER;  // negative = right
           currentBraking = 0;
 
@@ -1389,7 +1411,7 @@
       clearInterval(timerInterval);
 
       // ── Calcular e exibir tempo final ──
-      var tempoGasto = 40 - tempoRestante;
+      var tempoGasto = tempoDecorrido;
       var elTempo = document.getElementById('display-tempo-final');
       if (elTempo) elTempo.innerText = 'Seu tempo: ' + tempoGasto + 's ⏱';
 
@@ -1556,6 +1578,10 @@
         leadTelefone = leadContato;
         var btn = document.getElementById('btn-submit');
         btn.classList.add('loading'); btn.disabled = true;
+
+        // Dispara o ronco do motor imediatamente ao clicar
+        motorSom.play().catch(function (err) { console.warn("Áudio bloqueado pelo navegador", err); });
+
         setTimeout(function () { revealScene(gate, card, overlay); }, 420);
       });
     }
